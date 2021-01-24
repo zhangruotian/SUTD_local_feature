@@ -59,8 +59,11 @@ def get_arguments():
     parser.add_argument("--model-restore", type=str, default='checkpoints/lip.pth', help="restore pretrained model parameters.")
     parser.add_argument("--gpu", type=str, default='0', help="choose gpu device.")
     parser.add_argument("--input-dir", type=str, default='example3/query', help="path of input image folder.")
-    parser.add_argument("--output-dir", type=str, default='example3/query_bg_mask', help="path of output image folder.")
+    parser.add_argument("--output-dir", type=str, default='example3_lower_mask/query_lower_mask', help="path of output image folder.")
     parser.add_argument("--logits", action='store_true', default=False, help="whether to save the logits.")
+    parser.add_argument("--get_upper", action='store_true', default=False, help="get upper body")
+    parser.add_argument("--get_lower", action='store_true', default=False, help="get lower body")
+
 
     return parser.parse_args()
 
@@ -91,6 +94,10 @@ def get_palette(num_cls):
 
 def main():
     args = get_arguments()
+    if args.get_upper:
+        parts=[1,2,3,4,5,6,7,10,11,13,14,15]
+    if args.get_lower:
+        parts=[8,9,12,16,17,18,19]
 
     gpus = [int(i) for i in args.gpu.split(',')]
     assert len(gpus) == 1
@@ -142,10 +149,11 @@ def main():
 
             logits_result = transform_logits(upsample_output.data.cpu().numpy(), c, s, w, h, input_size=input_size)
             parsing_result = np.argmax(logits_result, axis=2)
-            parsing_result[parsing_result == 0] = 100
             for i in range(1,20):
-                parsing_result[parsing_result == i] = 0
-            parsing_result[parsing_result == 100] = 1
+                if i in parts:
+                    parsing_result[parsing_result == i] = 1
+                else:
+                    parsing_result[parsing_result == i] = 0
             parsing_result_path = os.path.join(args.output_dir, img_name[:-4] + '.png')
             cv2.imwrite(parsing_result_path,parsing_result)
 

@@ -88,7 +88,7 @@ class ft_net(nn.Module):
         return x
 
 # Define the our two-stream model
-class two_stream_resnet(nn.Module):
+class three_stream_resnet(nn.Module):
     def __init__(self, class_num,test=False):
         super().__init__()
         self.test=test
@@ -101,9 +101,10 @@ class two_stream_resnet(nn.Module):
         self.model.layer4[0].conv2.stride = (1, 1)
         # define 2 classifiers
         self.classifier_original= ClassBlock(2048, class_num, droprate=0.5, relu=False, bnorm=True, num_bottleneck=256)
-        self.classifier_bg = ClassBlock(2048, class_num, droprate=0.5, relu=False, bnorm=True, num_bottleneck=256)
+        self.classifier_upper = ClassBlock(2048, class_num, droprate=0.5, relu=False, bnorm=True, num_bottleneck=256)
+        self.classifier_lower = ClassBlock(2048, class_num, droprate=0.5, relu=False, bnorm=True, num_bottleneck=256)
 
-    def forward(self, x,x_bg):
+    def forward(self, x,x_upper,x_lower):
         x = self.model.conv1(x)
         x = self.model.bn1(x)
         x = self.model.relu(x)
@@ -112,16 +113,23 @@ class two_stream_resnet(nn.Module):
         x = self.model.layer2(x)
         x = self.model.layer3(x)
         x = self.model.layer4(x)
-        bg_feature_map=x*x_bg
+        upper_feature_map=x*x_upper
+        lower_feature_map=x*x_lower
+
         f = self.avgpool(x)
-        f_bg=self.avgpool(bg_feature_map)
+        f_upper=self.avgpool(upper_feature_map)
+        f_lower=self.avgpool(lower_feature_map)
+
         f = self.dropout(f)
-        f_bg=self.dropout(f_bg)
+        f_upper=self.dropout(f_upper)
+        f_lower=self.dropout(f_lower)
+
         if self.test==True:
-            return torch.cat((torch.squeeze(f),torch.squeeze(f_bg)),dim=1)
+            return torch.cat((torch.squeeze(f),torch.squeeze(f_upper),torch.squeeze(f_lower)),dim=1)
         y = []
         y.append(self.classifier_original(torch.squeeze(f)))
-        y.append(self.classifier_bg(torch.squeeze(f_bg)))
+        y.append(self.classifier_upper(torch.squeeze(f_upper)))
+        y.append(self.classifier_lower(torch.squeeze(f_lower)))
         return y
 
 if __name__=='__main__':

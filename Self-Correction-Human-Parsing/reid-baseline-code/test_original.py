@@ -16,19 +16,19 @@ import torchvision
 from torchvision import datasets, models, transforms
 import time
 import scipy.io
-from model import ft_net, two_stream_resnet
-import two_stream_dataset
+from model import ft_net, three_stream_resnet
+import three_stream_dataset
 ######################################################################
 # Options
 # --------
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--which_epoch',default='19', type=str, help='0,1,2,3...or last')
-parser.add_argument('--test_dir',default='../example3/pytorch_ori_and_bg_mask',type=str, help='./test_data')
-parser.add_argument('--name', default='two_stream_resnet_equal', type=str, help='save model path')
-parser.add_argument('--cross', default='two_stream_resnet_equal.mat', type=str, help='corss testing')
+parser.add_argument('--which_epoch',default='49', type=str, help='0,1,2,3...or last')
+parser.add_argument('--test_dir',default='../example3_original/pytorch',type=str, help='./test_data')
+parser.add_argument('--name', default='resnet50', type=str, help='save model path')
+parser.add_argument('--cross', default='resnet50.mat', type=str, help='corss testing')
 parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
-parser.add_argument('--use_two_stream_resnet', action='store_true', help='use our two stream resnet' )
+parser.add_argument('--use_three_stream_resnet', action='store_true', help='use our two stream resnet' )
 
 opt = parser.parse_args()
 
@@ -55,20 +55,19 @@ if len(gpu_ids)>0:
 # We will use torchvision and torch.utils.data packages for loading the
 # data.
 
-if opt.use_two_stream_resnet:
+if opt.use_three_stream_resnet:
     transform_train_list = [
-        transforms.Resize((384,192), interpolation=3),
-        # transforms.RandomHorizontalFlip(),
+        transforms.Resize((384, 192), interpolation=3),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]
-    transform_bg_list=[
-        transforms.Resize((24,12),interpolation=3),
+    ]
+    transform_parts_list = [
+        transforms.Resize((24, 12), interpolation=3),
         transforms.ToTensor()
     ]
     data_transforms = {
         'train': transforms.Compose( transform_train_list ),
-        'bg': transforms.Compose(transform_bg_list),
+        'parts': transforms.Compose(transform_parts_list),
     }
 else:
     data_transforms = transforms.Compose([
@@ -77,8 +76,8 @@ else:
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
 data_dir = test_dir
-if opt.use_two_stream_resnet:
-    image_datasets = {x: two_stream_dataset.TwoStreamDataset(os.path.join(data_dir,x) ,data_transforms['train'],data_transforms['bg']) for x in ['gallery','query']}
+if opt.use_three_stream_resnet:
+    image_datasets = {x: three_stream_dataset.ThreeStreamDataset(os.path.join(data_dir,x) ,data_transforms['train'],data_transforms['parts']) for x in ['gallery','query']}
 
 else:
     image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms) for x in ['gallery', 'query']}
@@ -132,22 +131,24 @@ def extract_feature(model,dataloaders):
         features = torch.cat((features,ff), 0)
     return features
 
-def extract_feature_two_stream(model,dataloaders):
+def extract_feature_three_stream(model,dataloaders):
     features = torch.FloatTensor()
     count = 0
     for data in dataloaders:
-        (img1,img2),label = data
+        (img1,img2,img3),label = data
         n, c, h, w = img1.size()
         count += n
         print(count)
-        ff = torch.FloatTensor(n, 4096).zero_()
+        ff = torch.FloatTensor(n, 6144).zero_()
         for i in range(2):
             if(i==1):
                 img1 = fliplr(img1)
                 img2 = fliplr(img2)
+                img3 = fliplr(img3)
             input_img1 = Variable(img1.cuda())
             input_img2 = Variable(img2.cuda())
-            outputs = model(input_img1,input_img2)
+            input_img3 = Variable(img3.cuda())
+            outputs = model(input_img1,input_img2,input_img3)
             f = outputs.data.cpu()
             #print(f.size())
             ff = ff+f
@@ -190,8 +191,8 @@ else:
 # duke-market 702
 print('-------test-----------')
 
-if opt.use_two_stream_resnet:
-    model_structure = two_stream_resnet(nnn,True)
+if opt.use_three_stream_resnet:
+    model_structure = three_stream_resnet(nnn,True)
 else:
     model_structure = ft_net(nnn)
 model = load_network(model_structure)
@@ -199,7 +200,7 @@ model = load_network(model_structure)
 #model.model.avgpool = nn.AdaptiveMaxPool2d((7,1))
 
 # Remove the final fc layer and classifier layer
-if not opt.use_two_stream_resnet:
+if not opt.use_three_stream_resnet:
     model.classifier.fc = nn.Sequential()
     model.classifier = nn.Sequential()
 
@@ -210,9 +211,9 @@ if use_gpu:
     model = model.cuda()
 
 # Extract feature
-if opt.use_two_stream_resnet:
-    gallery_feature = extract_feature_two_stream(model,dataloaders['gallery'])
-    query_feature = extract_feature_two_stream(model,dataloaders['query'])
+if opt.use_three_stream_resnet:
+    gallery_feature = extract_feature_three_stream(model,dataloaders['gallery'])
+    query_feature = extract_feature_three_stream(model,dataloaders['query'])
 else:
     gallery_feature = extract_feature(model, dataloaders['gallery'])
     query_feature = extract_feature(model, dataloaders['query'])

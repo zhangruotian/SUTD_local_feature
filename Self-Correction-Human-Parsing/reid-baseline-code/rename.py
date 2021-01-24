@@ -13,8 +13,8 @@ def rename(path):
             continue
         fileName = os.path.splitext(files)[0]
         fileType = os.path.splitext(files)[1]
-        newDirPath = os.path.join(path, fileName+'_bg' + fileType)
+        newDirPath = os.path.join(path, fileName+'_lower' + fileType)
         os.rename(oldDirPath, newDirPath)
 
 if __name__ == '__main__':
-    rename('../example3_bg_mask/pytorch_bg_mask')
+    rename('../example3_lower_mask/pytorch')

@@ -17,10 +17,10 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import time
 import os
-from model import ft_net,  two_stream_resnet
+from model import ft_net, three_stream_resnet
 from random_erasing import RandomErasing
 import json
-import two_stream_dataset
+import three_stream_dataset
 from PIL import Image
 
 ######################################################################
@@ -28,13 +28,13 @@ from PIL import Image
 # --------
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--name',default='two_stream_resnet_equal', type=str, help='output model name')
-parser.add_argument('--data_dir',default='../example3/pytorch_ori_and_bg_mask',type=str, help='training dir path')
+parser.add_argument('--name',default='resnet50', type=str, help='output model name')
+parser.add_argument('--data_dir',default='../example3_original/pytorch',type=str, help='training dir path')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--color_jitter', action='store_true', help='use color jitter in training' )
 parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')
-parser.add_argument('--use_two_stream_resnet', action='store_true', help='use our two stream resnet' )
+parser.add_argument('--use_three_stream_resnet', action='store_true', help='use our three stream resnet' )
 parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
 opt = parser.parse_args()
@@ -57,14 +57,13 @@ if len(gpu_ids)>0:
 # Load Data
 # ---------
 #
-if opt.use_two_stream_resnet:
+if opt.use_three_stream_resnet:
     transform_train_list = [
         transforms.Resize((384,192), interpolation=3),
-        # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]
-    transform_bg_list=[
+    transform_parts_list=[
         transforms.Resize((24,12),interpolation=3),
         transforms.ToTensor()
     ]
@@ -96,10 +95,10 @@ if opt.color_jitter:
 print(transform_train_list)
 
 
-if opt.use_two_stream_resnet:
+if opt.use_three_stream_resnet:
     data_transforms = {
         'train': transforms.Compose( transform_train_list ),
-        'bg': transforms.Compose(transform_bg_list),
+        'parts': transforms.Compose(transform_parts_list),
         'val': transforms.Compose(transform_val_list),
     }
 else:
@@ -114,11 +113,11 @@ if opt.train_all:
 
 image_datasets = {}
 
-if opt.use_two_stream_resnet:
-    image_datasets['train'] = two_stream_dataset.TwoStreamDataset(os.path.join(data_dir, 'train' + train_all),
-                                              data_transforms['train'],data_transforms['bg'])
-    image_datasets['val'] = two_stream_dataset.TwoStreamDataset(os.path.join(data_dir, 'val'),
-                                              data_transforms['val'],data_transforms['bg'])
+if opt.use_three_stream_resnet:
+    image_datasets['train'] = three_stream_dataset.ThreeStreamDataset(os.path.join(data_dir, 'train' + train_all),
+                                              data_transforms['train'],data_transforms['parts'])
+    image_datasets['val'] = three_stream_dataset.ThreeStreamDataset(os.path.join(data_dir, 'val'),
+                                              data_transforms['val'],data_transforms['parts'])
 else:
     image_datasets['train'] = datasets.ImageFolder(os.path.join(data_dir, 'train' + train_all),
                                                    data_transforms['train'])
@@ -232,7 +231,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     save_network(model, 'last')
     return model
 
-def train_model_two_stream(model, criterion, optimizer, scheduler, num_epochs=25):
+def train_model_three_stream(model, criterion, optimizer, scheduler, num_epochs=25):
     since = time.time()
 
     best_model_wts = model.state_dict()
@@ -256,32 +255,33 @@ def train_model_two_stream(model, criterion, optimizer, scheduler, num_epochs=25
             # Iterate over data.
             for data in dataloaders[phase]:
                 # get the inputs
-                (inputs1,inputs2), labels = data
+                (inputs1,inputs2,inputs3), labels = data
                 #print(inputs.shape)
                 # wrap them in Variable
                 if use_gpu:
                     inputs1 = Variable(inputs1.cuda())
                     inputs2 = Variable(inputs2.cuda())
+                    inputs3 = Variable(inputs3.cuda())
                     labels = Variable(labels.cuda())
                 else:
-                    inputs1,inputs2, labels = Variable(inputs1),Variable(inputs2), Variable(labels)
+                    inputs1,inputs2, inputs3,labels = Variable(inputs1),Variable(inputs2),Variable(inputs3), Variable(labels)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
                 # forward
-                outputs = model(inputs1, inputs2)
-                if not opt.use_two_stream_resnet:
+                outputs = model(inputs1, inputs2,inputs3)
+                if not opt.use_three_stream_resnet:
                     _, preds = torch.max(outputs.data, 1)
                     loss = criterion(outputs, labels)
                 else:
                     part = {}
                     sm = nn.Softmax(dim=1)
-                    num_part = 2
+                    num_part = 3
                     for i in range(num_part):
                         part[i] = outputs[i]
 
-                    score = sm(part[0]) + sm(part[1])
+                    score = sm(part[0]) + sm(part[1]) + sm(part[2])
                     _, preds = torch.max(score.data, 1)
 
                     loss = criterion(part[0], labels)
@@ -361,8 +361,8 @@ def save_network(network, epoch_label):
 #
 
 
-if opt.use_two_stream_resnet:
-    model = two_stream_resnet(len(class_names))
+if opt.use_three_stream_resnet:
+    model = three_stream_resnet(len(class_names))
 else:
     model = ft_net(len(class_names))
 print(model)
@@ -372,17 +372,19 @@ if use_gpu:
 
 criterion = nn.CrossEntropyLoss()
 
-if opt.use_two_stream_resnet:
+if opt.use_three_stream_resnet:
     ignored_params = list(map(id, model.model.fc.parameters()))
     ignored_params += (list(map(id, model.classifier_original.parameters()))
-                       + list(map(id, model.classifier_bg.parameters()))
+                       + list(map(id, model.classifier_upper.parameters()))
+                       + list(map(id, model.classifier_lower.parameters()))
                        )
     base_params = filter(lambda p: id(p) not in ignored_params, model.parameters())
     optimizer_ft = optim.SGD([
         {'params': base_params, 'lr': 0.1 * opt.lr},
         {'params': model.model.fc.parameters(), 'lr': opt.lr},
         {'params': model.classifier_original.parameters(), 'lr': opt.lr},
-        {'params': model.classifier_bg.parameters(), 'lr': opt.lr},
+        {'params': model.classifier_upper.parameters(), 'lr': opt.lr},
+        {'params': model.classifier_lower.parameters(), 'lr': opt.lr},
 
     ], weight_decay=5e-4, momentum=0.9, nesterov=True)
 else:
@@ -414,8 +416,8 @@ with open('%s/opts.json'%dir_name,'w') as fp:
     json.dump(vars(opt), fp, indent=1)
 
 
-if opt.use_two_stream_resnet:
-    model = train_model_two_stream(model, criterion, optimizer_ft, exp_lr_scheduler,
+if opt.use_three_stream_resnet:
+    model = train_model_three_stream(model, criterion, optimizer_ft, exp_lr_scheduler,
                            num_epochs=60)
 else:
     model = train_model(model, criterion, optimizer_ft, exp_lr_scheduler,

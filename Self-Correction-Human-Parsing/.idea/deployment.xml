@@ -5,7 +5,7 @@
       <paths name="ruotian@158.140.138.91:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/ruotian/SUTD_learnfrombg/Self-Correction-Human-Parsing" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/ruotian/SUTD_local_feature/Self-Correction-Human-Parsing" local="$PROJECT_DIR$" web="/" />
           </mappings>
           <excludedPaths>
             <excludedPath path="/home/ruotian/SUTD_learnfrombg/Self-Correction-Human-Parsing/example3" />
