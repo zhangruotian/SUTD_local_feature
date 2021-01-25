@@ -9,9 +9,9 @@ import logging
 import os.path as osp
 
 parser = argparse.ArgumentParser(description='Evaluate')
-parser.add_argument('--name', default='resnet50', type=str, help='save model path')
-parser.add_argument('--cross', default='resnet50.mat', type=str, help='corss testing')
-parser.add_argument('--logs_dir', type=str, metavar='PATH', default='log/resnet50.txt')
+parser.add_argument('--name', default='three_stream_resnet_market', type=str, help='save model path')
+parser.add_argument('--cross', default='three_stream_resnet_market.mat', type=str, help='corss testing')
+parser.add_argument('--logs_dir', type=str, metavar='PATH', default='log/three_stream_resnet_market.txt')
 opt = parser.parse_args()
 #which_epoch = opt.which_epoch
 name = opt.name

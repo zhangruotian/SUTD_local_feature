@@ -23,12 +23,12 @@ import three_stream_dataset
 # --------
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--which_epoch',default='49', type=str, help='0,1,2,3...or last')
-parser.add_argument('--test_dir',default='../example3_original/pytorch',type=str, help='./test_data')
-parser.add_argument('--name', default='resnet50', type=str, help='save model path')
-parser.add_argument('--cross', default='resnet50.mat', type=str, help='corss testing')
+parser.add_argument('--which_epoch',default='19', type=str, help='0,1,2,3...or last')
+parser.add_argument('--test_dir',default='../market/pytorch',type=str, help='./test_data')
+parser.add_argument('--name', default='three_stream_resnet_market', type=str, help='save model path')
+parser.add_argument('--cross', default='three_stream_resnet_market.mat', type=str, help='corss testing')
 parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
-parser.add_argument('--use_three_stream_resnet', action='store_true', help='use our two stream resnet' )
+parser.add_argument('--use_three_stream_resnet', action='store_true', help='use our three stream resnet' )
 
 opt = parser.parse_args()
 
@@ -187,7 +187,7 @@ elif  name == 'duke':
 elif  name[0:7] == 'personX' or name[0:7] == 'PersonX':
    nnn=410
 else:
-   nnn=50
+   nnn=751
 # duke-market 702
 print('-------test-----------')
 
