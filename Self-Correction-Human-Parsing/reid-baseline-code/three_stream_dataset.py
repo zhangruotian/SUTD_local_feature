@@ -12,7 +12,10 @@ def get_example(dir):
             if name.find('upper') != -1:
                 upper_name, file_type = os.path.splitext(name)
                 original_name = upper_name[0:-6] + file_type
-                label = name[0:4]
+                if original_name[0]=='-1':
+                    label=name[0:2]
+                else:
+                    label = name[0:4]
                 lower_name=upper_name[0:-6]+'_lower'+file_type
                 upper_name_new=upper_name+file_type
                 full_upper_name=os.path.join(root,upper_name_new)

@@ -9,8 +9,7 @@ parser.add_argument('--name', default='ft_ResNet50', type=str, help='save model 
 opt = parser.parse_args()
 name = opt.name
 # You only need to change this line to your dataset download path background
-#download_path = '/home/sunxx/project/a_data/background/'+name
-download_path = '../example3_lower_mask'
+download_path = '../market_lower_mask'
 
 if not os.path.isdir(download_path):
     print('please change the download_path')
