@@ -23,12 +23,13 @@ import three_stream_dataset
 # --------
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--which_epoch',default='19', type=str, help='0,1,2,3...or last')
+parser.add_argument('--which_epoch',default='49', type=str, help='0,1,2,3...or last')
 parser.add_argument('--test_dir',default='../market/pytorch',type=str, help='./test_data')
 parser.add_argument('--name', default='three_stream_resnet_market', type=str, help='save model path')
 parser.add_argument('--cross', default='three_stream_resnet_market.mat', type=str, help='corss testing')
 parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
 parser.add_argument('--use_three_stream_resnet', action='store_true', help='use our three stream resnet' )
+parser.add_argument('--training_set_classes', default=751,type=int, help='the number of classes of training set' )
 
 opt = parser.parse_args()
 
@@ -180,14 +181,7 @@ query_cam,query_label = get_id(query_path)
 
 ######################################################################
 # Load Collected data Trained model
-if name[0:6] == 'market' or name[0:6] == 'Market':
-   nnn=751
-elif  name == 'duke':
-   nnn=702
-elif  name[0:7] == 'personX' or name[0:7] == 'PersonX':
-   nnn=410
-else:
-   nnn=751
+nnn=opt.training_set_classes
 # duke-market 702
 print('-------test-----------')
 
